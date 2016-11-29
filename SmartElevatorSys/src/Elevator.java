@@ -4,13 +4,13 @@ import java.util.TimerTask;
 
 public class Elevator extends Thread{
 	private String id;
-	private int status, startingFloor, currentFloor, nextDestFloor, idleTime;
+	private int status, startingFloor, currentFloor, idleTime;
 	private MainControlSystem mainSys;
 	private Timer idleTimer;
 	public boolean[] isMoveToOtherFloor;
 	private boolean isDoorClose;
 	private int openDoorTime,ClientEnterTime,closeDoorTime,movingEachFloorTime;
-	private ArrayList<Integer> goingFloor;
+	private ArrayList<Integer> nextDestFloor;
 	//status = 0 - idle
 	//status = 1 - up
 	//status = 2 - down
@@ -19,14 +19,13 @@ public class Elevator extends Thread{
 		startingFloor = -1; //Handling elevator currently stops and access a new order 
 		status = 0;
 		currentFloor = 0;
-		nextDestFloor = 0;
+		nextDestFloor = new ArrayList<Integer> ();
 		openDoorTime =1000;
 		closeDoorTime=1000;
 		ClientEnterTime=5000;
 		movingEachFloorTime = 500;
 		isDoorClose = true;
 		this.idleTime = idleTime;
-		goingFloor = new ArrayList<Integer>();
 		isMoveToOtherFloor = new boolean[numOfFloors];
 		start();
 	}
@@ -35,24 +34,24 @@ public class Elevator extends Thread{
 		while(true){
 			//Get next destination
 			if(startingFloor!=-1){
-				nextDestFloor=startingFloor;
+				nextDestFloor.add(startingFloor);
 			}
 			else{
 				for(int i=0;i<isMoveToOtherFloor.length;i++){
 					if(isMoveToOtherFloor[i]){
 						if(status==0){
-							nextDestFloor=i;
+							nextDestFloor.add(i);
 							isMoveToOtherFloor[i] = false;
 							break;
 						}else if(status==1){
-							if(i>currentFloor&&i<nextDestFloor){
-								nextDestFloor=i;
+							if(i>currentFloor){
+								nextDestFloor.add(i);
 								isMoveToOtherFloor[i] = false;
 								break;
 							}
 						}else{
-							if(i<currentFloor&&i>nextDestFloor){
-								nextDestFloor=i;
+							if(i<currentFloor){
+								nextDestFloor.add(i);
 								isMoveToOtherFloor[i] = false;
 								break;
 							}
@@ -62,7 +61,7 @@ public class Elevator extends Thread{
 			}
 			
 			//Check move or stay
-			if(nextDestFloor==currentFloor&&startingFloor==-1){
+			if(nextDestFloor.size()==0&&startingFloor==-1){
 				status = 0;
 				runIdleCountTimer();	
 				try {
@@ -71,19 +70,20 @@ public class Elevator extends Thread{
 				catch(InterruptedException e) {
 				}
 			}else{
-				System.out.println("**Elevator "+id+" start to move from "+currentFloor+" to "+nextDestFloor);		
+				System.out.println("**Elevator "+id+" start to move from ["+currentFloor+"] to "+nextDestFloor);		
 				//Move to next destination
-				moveTo(nextDestFloor);
-				while(currentFloor!=nextDestFloor){
+				moveTo(nextDestFloor.get(0));
+				while(currentFloor!=nextDestFloor.get(0)){
 					moving(movingEachFloorTime);
 				}
 				//Finish moving, change currentFloor
 				
-				if(currentFloor == nextDestFloor){
+				if(currentFloor == nextDestFloor.get(0)){
+					nextDestFloor.remove(0);
 				
-				
-					System.out.println("**Elevator "+id+" "+currentFloor);		
+					System.out.println("**Elevator "+id+" arrive "+currentFloor);		
 					openDoor(openDoorTime);
+					
 					waitClientEnter(ClientEnterTime);
 					if(isDoorClose == false){
 						closeDoor(closeDoorTime);
@@ -96,9 +96,11 @@ public class Elevator extends Thread{
 			
 		}
 	}
+	/*
 	public int getDestFloor(){
 		return nextDestFloor;
 	}
+	*/
 	public void setID(int elevatorID){
 		this.id = String.valueOf(elevatorID);
 	}
@@ -108,8 +110,8 @@ public class Elevator extends Thread{
 	}
 	
 	public void moveTo(int floorNumber){
-		nextDestFloor = floorNumber;
-		if(nextDestFloor>currentFloor){
+		//nextDestFloor = floorNumber;
+		if(nextDestFloor.get(0)>currentFloor){
 			status=1;
 		}else{
 			status=2;
@@ -130,7 +132,7 @@ public class Elevator extends Thread{
 		
 	}
 	public int delayTimeMoving(){
-		int delayTime = Math.abs(currentFloor-nextDestFloor)*movingEachFloorTime;
+		int delayTime = Math.abs(currentFloor-nextDestFloor.get(0))*movingEachFloorTime;
 		return delayTime;
 	}
 	public int delayTimeDoor(){
@@ -147,13 +149,9 @@ public class Elevator extends Thread{
 					@Override
 					public void run() {
 						// TODO Auto-generated method stub
-						System.out.println("**Idle time is up, elevator "+id+" move to 0 floor");
-						System.out.println("**Elevator "+id+" start to move from "+currentFloor+" to 0");	
+						System.out.println("**Elevator "+id+" idle time is up");	
 						//Move to next destination
-						moveTo(0);
-						
-						//Finish moving, change currentFloor
-						currentFloor = 0;
+						nextDestFloor.add(0);
 						
 						idleTimer = null;
 					}
